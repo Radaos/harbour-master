@@ -22,20 +22,22 @@ namespace HarbourMaster.Profiles
             // Seed the registry with default profiles.
             // These initial entries define the built-in operating modes available to the tool.
             Profiles.Add(
-                new NavigationProfile(
-                    "longship",
-                    "Longship",
-                    4.5f,
-                    8f,
-                    15f));
+new NavigationProfile(
+    "longship",
+    "Longship",
+    4.5f,
+    6f,
+    8f,
+    15f));
 
             Profiles.Add(
-                new NavigationProfile(
-                    "drakkar",
-                    "Drakkar",
-                    7f,
-                    16f,
-                    25f));
+new NavigationProfile(
+    "drakkar",
+    "Drakkar",
+    7f,
+    14f,
+    16f,
+    25f));
         }
 
         // Returns the full list of profiles so callers can enumerate or cycle

@@ -1,41 +1,37 @@
-﻿using BepInEx;
+﻿using System;
+using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
+
+using HarbourMaster.Models;
+using HarbourMaster.Profiles;
+
 using UnityEngine;
 
 namespace HarbourMaster
 {
-    // Entry point for the BepInEx plugin. This is the bootstrap object that
-    // registers the mod with the game and creates the runtime tool instance.
     [BepInPlugin(
         "com.radaos.harbourmaster",
         "Harbour Master",
         "0.1.0")]
     public class HarbourMasterPlugin : BaseUnityPlugin
     {
-        // Singleton reference used by the rest of the mod so other classes can
-        // access plugin configuration and logging without passing references around.
         public static HarbourMasterPlugin Instance;
 
-        // Configurable hotkey used to enable/disable the harbour inspection tool.
+        public static ManualLogSource Log;
+
         internal ConfigEntry<KeyCode> ToggleKey;
 
-        // The active runtime tool that handles the harbour survey and overlay
-        // behaviour during gameplay.
         private HarbourMasterTool _tool;
 
-        // Shared logger for the mod. This is used by the tool and other classes to
-        // emit consistent diagnostics.
-        public static ManualLogSource Log;
+        private GUIStyle _hudStyle;
 
         private void Awake()
         {
-            // Cache plugin instance for access across the mod.
             Instance = this;
+
             Log = Logger;
 
-            // Register the toggle hotkey in the config system so it can be changed
-            // by the user in the BepInEx config file.
             ToggleKey =
                 Config.Bind(
                     "Controls",
@@ -43,23 +39,87 @@ namespace HarbourMaster
                     KeyCode.F10,
                     "Toggle Harbour Master mode");
 
-            // Create the runtime tool that is responsible for reading input,
-            // conducting surveys, and rendering the overlay.
             _tool = new HarbourMasterTool();
 
-            // Simple startup message to confirm the plugin is running.
+            _hudStyle = new GUIStyle();
+
+            _hudStyle.fontSize = 16;
+
+            _hudStyle.normal.textColor =
+                Color.cyan;
+
+
             Logger.LogInfo(
                 "Harbour Master loaded");
         }
 
         private void Update()
         {
-            // Forward the frame update to the tool so it can respond to keypresses
-            // and update the survey state each game tick.
             if (_tool != null)
             {
                 _tool.Update();
             }
+        }
+
+        private void OnGUI()
+        {
+            if (_tool == null)
+            {
+                return;
+            }
+
+            if (!_tool.Active)
+            {
+                return;
+            }
+
+            NavigationProfile profile =
+                ProfileRegistry.Get(
+                    _tool.ProfileIndex);
+
+
+            GUI.Box(
+                new Rect(
+                    10,
+                    10,
+                    300,
+                    160),
+                "");
+
+            string text =
+                "HARBOUR MASTER ACTIVE\n\n" +
+                "Profile: " +
+                profile.DisplayName +
+
+                "\nRadius: " +
+                _tool.Radius.ToString("F0") +
+                "m" +
+
+                "\nScale: " +
+                _tool.RadiusMultiplier.ToString("F2") +
+                "x";
+
+            if (_tool.HasTarget)
+            {
+                text +=
+                    "\nTarget X: " +
+                    _tool.CurrentTarget.x.ToString("F0") +
+                    "\nTarget Z: " +
+                    _tool.CurrentTarget.z.ToString("F0");
+            }
+            else
+            {
+                text += "\nNo terrain target";
+            }
+
+            GUI.Label(
+                new Rect(
+                    20,
+                    20,
+                    280,
+                    140),
+                            text,
+                _hudStyle);
         }
     }
 }

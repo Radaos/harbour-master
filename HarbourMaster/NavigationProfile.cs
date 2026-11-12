@@ -20,20 +20,31 @@
         // Minimum turning radius expected for manoeuvring under this profile.
         public float TurningRadius;
 
+        public float VesselWidth;
+
         // Creates a profile with the specific parameters needed to evaluate a
         // proposed harbour route or basin against the selected operating rules.
         public NavigationProfile(
             string id,
             string displayName,
             float safeDepth,
+            float vesselWidth,
             float channelWidth,
             float turningRadius)
         {
             Id = id;
             DisplayName = displayName;
+
             SafeDepth = safeDepth;
+            VesselWidth = vesselWidth;
             ChannelWidth = channelWidth;
             TurningRadius = turningRadius;
         }
-    }
 }
+
+
+
+
+
+    }
+

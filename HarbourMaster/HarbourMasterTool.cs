@@ -20,6 +20,43 @@ namespace HarbourMaster
         // Radius used when painting / evaluating an area around the target point.
         private float _radius = 15f;
 
+        // Multiplier applied to the profile-derived radius.
+        private float _radiusMultiplier = 1.0f;
+
+        private Vector3 _currentTarget;
+
+        private bool _hasTarget;
+
+        public float Radius
+        {
+            get { return _radius; }
+        }
+
+        public float RadiusMultiplier
+        {
+            get { return _radiusMultiplier; }
+        }
+
+        public bool Active
+        {
+            get { return _active; }
+        }
+
+        public int ProfileIndex
+        {
+            get { return _profileIndex; }
+        }
+
+        public bool HasTarget
+        {
+            get { return _hasTarget; }
+        }
+
+        public Vector3 CurrentTarget
+        {
+            get { return _currentTarget; }
+        }
+
         public void Update()
         {
             // Toggle the tool on/off with the configured key.
@@ -54,8 +91,10 @@ namespace HarbourMaster
             }
 
             // Only operate when the local player is present.
-            if (!Player.m_localPlayer)
+            if (Player.m_localPlayer == null)
+            {
                 return;
+            }
 
             // Cycle through available navigation profiles with PageUp/PageDown.
             if (UnityEngine.Input.GetKeyDown(KeyCode.PageUp))
@@ -84,22 +123,42 @@ namespace HarbourMaster
                 }
             }
 
-            // Allow the active radius to be adjusted with the mouse wheel while
-            // holding Ctrl; this gives a quick way to change the survey area.
-            if (UnityEngine.Input.GetKey(
-                    KeyCode.LeftControl))
+
+            // Decrease dredge size multiplier.
+            if (UnityEngine.Input.GetKeyDown(
+                    KeyCode.Minus))
             {
-                _radius +=
-                    UnityEngine.Input
-                        .mouseScrollDelta.y;
+                _radiusMultiplier -= 0.25f;
             }
 
-            // Clamp the radius to a practical range so it remains usable.
-            _radius =
+            // Increase dredge size multiplier.
+            if (UnityEngine.Input.GetKeyDown(
+                    KeyCode.Equals))
+            {
+                _radiusMultiplier += 0.25f;
+            }
+
+            _radiusMultiplier =
                 Mathf.Clamp(
-                    _radius,
-                    5f,
-                    100f);
+                    _radiusMultiplier,
+                    0.5f,
+                    4.0f);
+
+
+            // Decrease radius.
+            if (UnityEngine.Input.GetKeyDown(
+                    KeyCode.Minus))
+            {
+                _radius -= 1f;
+            }
+
+            // Increase radius.
+            if (UnityEngine.Input.GetKeyDown(
+                    KeyCode.Equals))
+            {
+                _radius += 1f;
+            }
+
 
             Vector3 point;
 
@@ -108,8 +167,12 @@ namespace HarbourMaster
                     .TryGetPoint(
                         out point))
             {
+                _hasTarget = false;
                 return;
             }
+
+            _hasTarget = true;
+            _currentTarget = point;
 
             // Draw the visual radius marker at the surveyed point.
             HarbourPreviewRenderer
@@ -121,6 +184,21 @@ namespace HarbourMaster
             NavigationProfile profile =
                 ProfileRegistry.Get(
                     _profileIndex);
+
+            _radius =
+                profile.VesselWidth *
+                2f *
+                _radiusMultiplier;
+
+            // Execute dredging operation.
+            if (UnityEngine.Input.GetKeyDown(
+                KeyCode.Delete))
+            {
+                ExecuteDredge(
+                    point,
+                    _radius,
+                    profile);
+            }
 
             SurveyResult survey =
                 SurveyService.Survey(
@@ -140,6 +218,54 @@ namespace HarbourMaster
                 targetElevation);
         }
 
+        private void ExecuteDredge(
+            Vector3 centre,
+            float radius,
+            NavigationProfile profile)
+        {
+            Collider[] colliders =
+                Physics.OverlapSphere(
+                    centre,
+                    radius);
+
+            HarbourMasterPlugin.Log.LogInfo(
+                "Found " +
+                colliders.Length +
+                " colliders");
+
+            for (int i = 0;
+                 i < colliders.Length;
+                 i++)
+            {
+                Collider collider =
+                    colliders[i];
+
+                TerrainComp terrainComp =
+                    collider.GetComponent<TerrainComp>();
+
+                if (terrainComp != null)
+                {
+                    HarbourMasterPlugin.Log.LogInfo(
+                        "TerrainComp: " +
+                        terrainComp.name);
+                }
+
+                Heightmap heightmap =
+                    collider.GetComponent<Heightmap>();
+
+                if (heightmap != null)
+                {
+                    HarbourMasterPlugin.Log.LogInfo(
+                        "Heightmap: " +
+                        heightmap.name);
+                }
+            }
+
+            Player.m_localPlayer.Message(
+                MessageHud.MessageType.Center,
+                "Terrain inspection complete");
+        }
+
         // Temporary overlay method used to show profile information in a simple
         // debug form until a more polished HUD is implemented.
         private void DrawOverlay(
@@ -147,9 +273,6 @@ namespace HarbourMaster
             SurveyResult survey,
             float targetElevation)
         {
-            // v0.1:
-            // replace with proper HUD later
-
             string text =
                 profile.DisplayName
                 + " Depth "
